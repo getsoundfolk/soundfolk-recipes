@@ -1,0 +1,2 @@
+fixtures/** linguist-vendored -diff
+recipe.schema.json linguist-generated

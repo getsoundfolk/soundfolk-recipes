@@ -1,0 +1,16 @@
+Soundfolk recipes
+
+The recipes in this repository (the files in `stations/`, as a database) are made available under
+the Open Database License 1.0: https://opendatacommons.org/licenses/odbl/1-0/
+
+Any rights in individual contents of the database are licensed under the Database Contents
+License 1.0: https://opendatacommons.org/licenses/dbcl/1-0/
+
+The published list (`recipes.json`, compiled from `stations/`) is the same database under the same
+licences.
+
+Not covered by these licences:
+* `fixtures/`: excerpts of third-party web pages, kept only to test the recipes. They belong to
+  their respective owners.
+* `recipe.schema.json` and the tooling in `scripts/` and `.github/`: Mozilla Public License 2.0,
+  like the Soundfolk app (https://github.com/getsoundfolk/soundfolk).

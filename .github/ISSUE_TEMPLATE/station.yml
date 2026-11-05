@@ -1,0 +1,22 @@
+name: Request a station
+description: A station whose stream doesn't announce its tracks, but whose website shows them.
+labels: [station]
+body:
+  - type: input
+    id: station
+    attributes:
+      label: Station
+      description: Name, and its Radio-Browser page if you have it.
+    validations:
+      required: true
+  - type: input
+    id: page
+    attributes:
+      label: Where the website shows the track on air
+      description: The player or playlist page, or the JSON request seen in your browser's network tools.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else

@@ -1,0 +1,95 @@
+name: recipes
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 5 * * 1" # live check, Mondays
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/recipe-check
+      - name: Repository rules
+        run: python3 scripts/lint.py
+      - name: Replay the fixtures
+        run: recipe-check test stations/*.toml
+      - name: Compile the list
+        run: |
+          mkdir -p site/v1
+          recipe-check compile stations -o site/v1/recipes.json
+          recipe-check schema > site/v1/recipe.schema.json
+      - name: Schema up to date
+        run: |
+          if ! diff -q recipe.schema.json site/v1/recipe.schema.json > /dev/null; then
+            echo "::warning file=recipe.schema.json::behind the engine; run: recipe-check schema > recipe.schema.json"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recipes
+          path: site/
+
+  publish:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}v1/recipes.json
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: recipes
+          path: site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+  live:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/recipe-check
+      - name: Read every station's page now
+        run: |
+          {
+            echo "## Live check"
+            echo
+            echo "| Recipe | Result |"
+            echo "|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          failed=0
+          for recipe in stations/*.toml; do
+            if out=$(timeout 60 recipe-check run "$recipe" 2>&1) && ! grep -q "nothing on air" <<< "$out"; then
+              result="✅ $(head -n1 <<< "$out" | sed 's/^on air: *//')"
+            else
+              failed=$((failed + 1))
+              result="⚠️ $(tr '\n' ' ' <<< "$out" | cut -c1-200)"
+              echo "::warning file=$recipe::$(tr '\n' ' ' <<< "$out")"
+            fi
+            echo "| \`$(basename "$recipe" .toml)\` | ${result//|/\\|} |" >> "$GITHUB_STEP_SUMMARY"
+          done
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo "$failed recipe(s) found nothing. Pages can be empty between shows: check before fixing." >> "$GITHUB_STEP_SUMMARY"

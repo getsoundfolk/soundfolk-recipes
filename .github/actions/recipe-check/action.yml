@@ -1,0 +1,33 @@
+name: recipe-check
+description: Builds recipe-check from the app's repository (cached per commit) and puts it on the PATH.
+inputs:
+  ref:
+    description: Branch of getsoundfolk/soundfolk to build from.
+    default: main
+runs:
+  using: composite
+  steps:
+    - name: Resolve the engine's commit
+      id: rev
+      shell: bash
+      run: |
+        rev=$(git ls-remote https://github.com/getsoundfolk/soundfolk "refs/heads/${{ inputs.ref }}" | cut -f1)
+        test -n "$rev"
+        echo "rev=$rev" >> "$GITHUB_OUTPUT"
+    - name: Restore recipe-check
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.recipe-check
+        key: recipe-check-${{ runner.os }}-${{ steps.rev.outputs.rev }}
+    - name: Build recipe-check
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        cargo install --locked --root ~/.recipe-check \
+          --git https://github.com/getsoundfolk/soundfolk --rev "${{ steps.rev.outputs.rev }}" \
+          soundfolk-nowplaying --bin recipe-check --features cli
+    - shell: bash
+      run: |
+        echo "$HOME/.recipe-check/bin" >> "$GITHUB_PATH"
+        echo "recipe-check built from getsoundfolk/soundfolk@${{ steps.rev.outputs.rev }}" >> "$GITHUB_STEP_SUMMARY"

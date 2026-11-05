@@ -1,0 +1,4 @@
+# Every change to main needs the approval of a recipes maintainer (the branch ruleset requires a
+# code owner's review): recipes make every Soundfolk read a URL, and bots can't approve for us.
+# Add maintainers to the team, not here: https://github.com/orgs/getsoundfolk/teams/recipes-maintainers
+* @getsoundfolk/recipes-maintainers

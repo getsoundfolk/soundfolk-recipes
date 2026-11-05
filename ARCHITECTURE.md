@@ -56,9 +56,15 @@ overrides people made of it; fix recipes in place instead.
 
 ### Fixtures
 A fixture is the part of the page the recipe reads, saved at a known instant, with what the recipe
-must find in it (`[[test]]`): artist, title, start time, next track. They are third-party content
-and are **not** covered by the database licence (see `LICENSE`). Keep them small (64 KiB max) and
-stripped of everything else (scripts, trackers, personal data).
+must find in it (`[[test]]`): artist, title, start time, next track. It only serves the tests (the
+app always reads the live page), so it keeps **what the test checks and nothing more**: the track on
+air, the next one, and the show if the recipe reads it, with the elements around them that the
+selectors need. No played tracks, no further upcoming ones, no scripts, trackers or personal data.
+
+The rule holds for every recipe: `recipe-check test` (in CI, and the app's own tests for the recipes
+it ships) cuts each fixture down again and fails when the fixture is more than twice that size plus
+1 KiB, with the command that fixes it (`recipe-check fixture`). Fixtures are third-party content and
+are **not** covered by the database licence (see `LICENSE`); 64 KiB at most.
 
 ## 4. The recipe engine lives in the app
 The format, the extraction and the scheduling are implemented once, in the
@@ -87,7 +93,7 @@ recipes with the engine the next release of the app will ship. The format refere
 
 | Job | When | What |
 |---|---|---|
-| `check` | every pull request and push | `scripts/lint.py`; `recipe-check test stations/*.toml`; compile the list and attach it to the run; warn when `recipe.schema.json` is behind the engine. |
+| `check` | every pull request and push | `scripts/lint.py`; `recipe-check test stations/*.toml` (fixtures replayed, and refused when much larger than what the test checks); compile the list and attach it to the run; warn when `recipe.schema.json` is behind the engine. |
 | `publish` | push to `main`, manual on `main` | compile, then deploy `v1/recipes.json` and `v1/recipe.schema.json` to GitHub Pages. |
 | `live` | Mondays, manual on `main` | read every station's page **now** with `recipe-check run` and list in the run summary the recipes that find nothing. Never blocks anything: sites change, pages are empty between shows. |
 
@@ -121,7 +127,7 @@ player) has two buttons for it:
 ```
 
 * **The fixture** is built by the engine (`soundfolk_nowplaying::fixture`, also behind
-  `recipe-check fixture`): the elements the recipe reads (the item, the first three upcoming tracks,
+  `recipe-check fixture`): the elements the recipe reads (the item, the **first** upcoming track,
   the show) with the chain of their ancestors and their attributes, so that the selectors still
   match; for JSON, the paths read in an otherwise empty document; for text, the match. The excerpt
   must read exactly like the whole page, else a wider one is tried (whole parents, for positional

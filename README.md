@@ -121,8 +121,9 @@ keeps a copy of both files, laid out as in this repository, in `<your recipes fo
    ```
 
    Without Rust, save the page (`curl -sS -D headers.txt -o fixtures/<id>.html "<fetch.url>"`), cut it
-   down to what the recipe reads (no scripts, styles, trackers or anything about users; 64 KiB at
-   most), start it with a comment saying where it comes from (see `fixtures/frequence7.html`), and
+   down to what the test checks: the track on air, the **next one** and the show, with the elements
+   around them that the selectors need; no played tracks, no scripts, styles, trackers or anything
+   about users (CI refuses a fixture much larger than that), start it with a comment saying where it comes from (see `fixtures/frequence7.html`), and
    write the test by hand:
 
    ```toml

@@ -7,7 +7,8 @@ and where the artist and title are on that page.
 This repository is the shared list of recipes. Every copy of Soundfolk downloads it (once a day),
 so **a recipe added here gives titles to every listener of that station**.
 
-* Want a station? [Ask for it](https://github.com/getsoundfolk/soundfolk-recipes/issues/new?template=station.yml).
+* Want a station? [Ask for it](https://github.com/getsoundfolk/soundfolk-recipes/issues/new?template=station.yml),
+  or click **Ask for a recipe** in Soundfolk (ⓘ in the player) when it finds no title.
 * A station shows wrong or no titles? [Report it](https://github.com/getsoundfolk/soundfolk-recipes/issues/new?template=broken.yml), or fix it (below).
 * Curious how it works? Read [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -15,8 +16,8 @@ so **a recipe added here gives titles to every listener of that station**.
 
 ## Add a station
 
-You need a text editor and a browser. `recipe-check` (step 4) is optional: CI runs the same checks
-on your pull request.
+You need Soundfolk, a text editor and a GitHub account. No git or command line: the app prepares
+everything and a bot opens the pull request.
 
 ### 1. Check the stream doesn't already announce titles
 Play the station in Soundfolk and open its details (ⓘ in the player). If *Track on air* says
@@ -90,48 +91,51 @@ check them):
 | `cover`, `show` | Optional: cover art URL, name of the show on air. |
 | `ignore` | Regexes of titles that aren't tracks: jingles, ads, the station's name. |
 
-### 4. Save a fixture and a test
-A fixture is a saved copy of the page, so that CI can check the recipe without going online, and
-so that the next person can see what the page looked like.
+### 4. Share it, from the app
+When **Test** reads the right track, click **Share this recipe** (you need a GitHub account):
 
-```bash
-curl -sS -D headers.txt -o fixtures/<id>.html "<fetch.url>"
-grep -i '^date:' headers.txt     # when it was saved: goes into `at`
-```
+1. Soundfolk reads the page once more and keeps only the part your recipe reads: the **fixture**, a
+   small saved copy of the page that lets CI check the recipe without going online. It writes the
+   `[[test]]` saying what the recipe must find in it.
+2. Your browser opens the *Share a recipe* form here, filled in with the recipe and the fixture
+   (when the fixture is too long for a link, it is in your clipboard: paste it into the *Fixture*
+   field). Check the **id** (the future file name, it can't change later), tick the licence box and
+   submit.
+3. A bot checks the recipe and opens a pull request in your name, or comments on the issue with
+   what is wrong: edit the issue to try again.
 
-Then **cut the fixture down** to the part the recipe reads (the playlist `<ul>`, the JSON object):
-no scripts, no styles, no trackers, nothing about users; 64 KiB at most. Start it with a comment
-saying where it comes from (see `fixtures/frequence7.html`). Then add what the recipe must find in
-it at the end of the recipe:
+Once a maintainer merges it, every copy of Soundfolk gets the recipe within a day. Soundfolk also
+keeps a copy of both files, laid out as in this repository, in `<your recipes folder>/to-share/`.
 
-```toml
-[[test]]
-page = "../fixtures/<id>.html"
-at = "2026-11-04T21:39:08Z"          # the HTTP Date from headers.txt
-artist = "BLACK RAINBOWS"
-title = "Children Of Fire And Sacrifices"
-started_at = "2026-11-04T21:36:51Z"  # optional: if the recipe reads `start`
-next_title = "Nino"                  # optional: if it reads `next`
-```
+### Or by hand, with a pull request
+1. Put the recipe in `stations/<id>.toml`, with `#:schema ../recipe.schema.json` as its first line.
+   The **id** is the file name: lowercase letters, digits, `-` and `_` (`radio-nova`, `fip-jazz`).
+   It can't be changed later: choose it after the station.
+2. Save the fixture and write the test, with `recipe-check` (needs Rust):
 
-Check it, if you have Rust (or skip this, CI does it):
+   ```bash
+   cargo install --locked --git https://github.com/getsoundfolk/soundfolk soundfolk-nowplaying --bin recipe-check --features cli
+   recipe-check fixture stations/<id>.toml   # reads the page now, writes fixtures/<id>.html and the [[test]]
+   python3 scripts/lint.py
+   recipe-check test stations/<id>.toml
+   ```
 
-```bash
-cargo install --locked --git https://github.com/getsoundfolk/soundfolk soundfolk-nowplaying --bin recipe-check --features cli
-python3 scripts/lint.py
-recipe-check test stations/<id>.toml
-recipe-check run stations/<id>.toml     # reads the live page now
-```
+   Without Rust, save the page (`curl -sS -D headers.txt -o fixtures/<id>.html "<fetch.url>"`), cut it
+   down to what the recipe reads (no scripts, styles, trackers or anything about users; 64 KiB at
+   most), start it with a comment saying where it comes from (see `fixtures/frequence7.html`), and
+   write the test by hand:
 
-### 5. Open a pull request
-1. Fork this repository, add `stations/<id>.toml` and `fixtures/<id>.html`, and change the first
-   line of the recipe to `#:schema ../recipe.schema.json` if you started from the app's copy.
-2. The **id** is the file name: lowercase letters, digits and `-` (`radio-nova`, `fip-jazz`). It
-   can't be changed later, choose it after the station.
-3. One station per pull request (a family of stations sharing the same page format can come
-   together).
-4. CI checks the recipe and replays the fixture. Once merged, every copy of Soundfolk gets it within
-   a day.
+   ```toml
+   [[test]]
+   page = "../fixtures/<id>.html"
+   at = "2026-11-04T21:39:08Z"          # when the page was saved: its HTTP Date, in headers.txt
+   artist = "BLACK RAINBOWS"
+   title = "Children Of Fire And Sacrifices"
+   started_at = "2026-11-04T21:36:51Z"  # optional: if the recipe reads `start`
+   next_title = "Nino"                  # optional: if it reads `next`
+   ```
+3. Open a pull request: one station per pull request (a family of stations sharing the same page
+   format can come together). CI checks the recipe and replays the fixture.
 
 ## Fix a broken recipe
 Sites change. When a station shows wrong or no titles:
@@ -139,9 +143,9 @@ Sites change. When a station shows wrong or no titles:
 1. In Soundfolk, open ⓘ on the station and click **Edit locally**: the app copies the recipe in use
    into your recipes folder, where it replaces the shared one on your computer. Fix it until
    **Test** reads the right track.
-2. Save a new fixture of today's page and update the `[[test]]` (keep the old fixture only if the
-   site still serves both formats).
-3. Open a pull request changing `stations/<id>.toml` **in place**, without renaming it.
+2. Click **Share this recipe**. The id stays the same, so the pull request updates the recipe in
+   place, with a fixture of today's page. (By hand: `recipe-check fixture stations/<id>.toml`, and
+   don't rename the file.)
 
 Once your fix is merged and has reached the app, delete your local copy so that you get the next
 fixes too.

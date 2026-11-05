@@ -1,0 +1,102 @@
+# Turns a "Share a recipe" issue (opened from Soundfolk) into a pull request.
+#
+# The issue body is untrusted: scripts/from_issue.py only writes it to stations/<id>.toml and
+# fixtures/<id>.<ext>, and it never reaches a shell command line. This workflow runs the default
+# branch's scripts, never the issue's.
+name: share
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions: {}
+
+concurrency:
+  group: share-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  share:
+    if: github.event.issue.state == 'open' && contains(github.event.issue.labels.*.name, 'shared-recipe')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE: ${{ github.event.issue.number }}
+      BRANCH: share/issue-${{ github.event.issue.number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/recipe-check
+
+      - name: Read the issue
+        id: issue
+        run: |
+          if ! python3 scripts/from_issue.py "$GITHUB_EVENT_PATH" > out.txt 2> errors.txt; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          cat out.txt >> "$GITHUB_OUTPUT"
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+
+      - name: Check the recipe
+        id: check
+        if: steps.issue.outputs.ok == 'true'
+        env:
+          ID: ${{ steps.issue.outputs.id }}
+        run: |
+          if { python3 scripts/lint.py && recipe-check test "stations/$ID.toml"; } > errors.txt 2>&1; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Say what is wrong
+        if: steps.issue.outputs.ok != 'true' || steps.check.outputs.ok != 'true'
+        run: |
+          {
+            echo "The recipe can't be used yet:"
+            echo
+            echo '```'
+            cat errors.txt
+            echo '```'
+            echo
+            echo "Edit this issue to try again: the checks run on every edit."
+          } > comment.md
+          gh issue comment "$ISSUE" --body-file comment.md
+          exit 1
+
+      - name: Open or update the pull request
+        env:
+          ID: ${{ steps.issue.outputs.id }}
+          AUTHOR: ${{ github.event.issue.user.login }}
+          AUTHOR_ID: ${{ github.event.issue.user.id }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add stations fixtures
+          git commit -q --author "$AUTHOR <$AUTHOR_ID+$AUTHOR@users.noreply.github.com>" \
+            -m "stations: $ID" -m "Shared from Soundfolk in #$ISSUE."
+          git push -f origin "$BRANCH"
+
+          pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+          if [ -z "$pr" ]; then
+            if git cat-file -e "HEAD~1:stations/$ID.toml" 2> /dev/null; then what="Update"; else what="Add"; fi
+            printf '%s recipe `%s`, shared from Soundfolk by @%s.\n\nCloses #%s\n' "$what" "$ID" "$AUTHOR" "$ISSUE" > body.md
+            if url=$(gh pr create --head "$BRANCH" --title "stations: $ID" --body-file body.md); then
+              gh issue comment "$ISSUE" --body "Thanks! The recipe passes its checks: $url"
+            else
+              # Actions may not be allowed to open pull requests (organization setting): a
+              # maintainer opens it from the branch, prefilled.
+              compare="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/main...$BRANCH?expand=1"
+              gh issue comment "$ISSUE" --body "Thanks! The recipe passes its checks and is ready on \`$BRANCH\`. A maintainer will open the pull request: $compare"
+            fi
+          else
+            gh issue comment "$ISSUE" --body "Updated #$pr with the edited recipe."
+          fi
+          # Pull requests opened with this workflow's token don't trigger workflows: run the checks.
+          gh workflow run recipes.yml --ref "$BRANCH"

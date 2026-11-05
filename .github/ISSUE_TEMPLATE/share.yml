@@ -1,0 +1,40 @@
+name: Share a recipe
+description: Usually opened by Soundfolk (ⓘ › Share this recipe). A bot turns it into a pull request.
+title: "Recipe: "
+labels: [shared-recipe]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Soundfolk filled in this form. Submit it: a bot checks the recipe against the fixture and
+        opens a pull request, or says here what is wrong. Edit the issue to try again.
+  - type: input
+    id: recipe-id
+    attributes:
+      label: Recipe id
+      description: The file name without `.toml` (lowercase letters, digits, `-` and `_`). An existing id updates that recipe.
+    validations:
+      required: true
+  - type: textarea
+    id: recipe
+    attributes:
+      label: Recipe
+      description: The whole `.toml` file, with its `[[test]]`.
+      render: toml
+    validations:
+      required: true
+  - type: textarea
+    id: fixture
+    attributes:
+      label: Fixture
+      description: The excerpt of the page. If this field is empty, Soundfolk copied it to your clipboard; paste it here.
+      render: text
+    validations:
+      required: true
+  - type: checkboxes
+    id: licence
+    attributes:
+      label: Licence
+      options:
+        - label: I agree that this recipe is published under the ODbL 1.0 / DbCL 1.0 (see LICENSE).
+          required: true

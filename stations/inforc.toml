@@ -1,0 +1,23 @@
+#:schema ../recipe.schema.json
+# Info RC (www.inforc.fr).
+# The Aura FM stream sends no ICY metadata and the Icecast status page has no title. The home
+# page lists the tracks played ("Vous l'avez entendu sur INFORC"), newest first, rendered
+# server-side: the first li.widget-item is the track on air. Only the start (station's local
+# HH:MM) is given: no length, no next track.
+schema = 1
+name = "Info RC"
+match = { streams = ["live.aurafm.org/InfoRC"] }
+fetch = { url = "https://www.inforc.fr/" }
+
+[extract]
+type = "html"
+item = "ul.widget-histo > li.widget-item"
+artist = ".artist"
+title = ".title"
+start = ".time"
+
+[[test]]
+page = "../fixtures/inforc.html"
+at = "2026-11-06T11:49:36Z"
+artist = "Man Man"
+title = "Engrish Bwudd"

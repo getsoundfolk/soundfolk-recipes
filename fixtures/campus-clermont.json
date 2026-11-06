@@ -1,0 +1,24 @@
+{
+  "data": {
+    "current": {
+      "ends": "2026-11-06 12:21:17",
+      "metadata": {
+        "artist_name": "Katerine",
+        "track_title": "Marine Le Pen"
+      },
+      "name": "Marine Le Pen",
+      "starts": "2026-11-06 12:18:32",
+      "type": "track"
+    },
+    "next": {
+      "ends": "2026-11-06 12:25:01",
+      "metadata": {
+        "artist_name": "Jesca Hoop",
+        "track_title": "Feast Of The Heart (Undressed)"
+      },
+      "name": "Feast Of The Heart (Undressed)",
+      "starts": "2026-11-06 12:21:15",
+      "type": "track"
+    }
+  }
+}
